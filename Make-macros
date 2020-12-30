@@ -1,0 +1,112 @@
+##### MACROS #####
+
+RINTLIBS      = -lRint
+EGLIBS        = -lEG -lEGPythia -lEGVenus 
+GLLIBS        = -lRGL
+TTFLIBS       = -lGX11TTF
+
+LPATH         = $(ROOTSYS)/lib
+
+##### utilities #####
+
+MAKELIB       = ./Makelib
+
+##### lib #####
+
+HadesRS          = HadesAnal.cxx $(ECBBaseCXX)
+
+HadesRH          = HadesAnal.h $(ECBBaseH) utility.h 
+
+HadesRO          = $(HadesRS:.cxx=.o)
+
+HadesRL          = HadesLinkDef.h
+
+HadesRDS         = Hades_Cint.cxx
+
+HadesRDH         = $(HadesRDS:.cxx=.h)
+
+HadesRDO         = $(HadesRDS:.cxx=.o)
+
+HadesRLIB        = libHadesAnal.$(SOEXT)
+
+##### nprun #####
+
+HadesRMAINS     = HadesA.cxx
+HadesRMAINO     = $(HadesRMAINS:.cxx=.o)
+HadesRMAIN      = HadesA
+
+##### all #####
+
+ALLSRCS       = $(HadesRS) $(HadesRMAINS)
+
+ALLDICT       = $(HadesRDS)
+
+ALLOBJS       = $(HadesRO) $(HadesRMAINO)
+
+ALLLIBS       = $(HadesRLIB)
+
+ALLEXECS      = $(HadesRMAIN) 
+
+##### RULES #####
+
+.SUFFIXES: .cxx
+
+%.o:            %.cxx
+		$(CXX) $(OPT) $(CXXFLAGS) -c $<
+
+%.o:            %.c
+		$(CC) $(OPT) $(CFLAGS) -c $<
+
+##### TARGETS #####
+
+.PHONY:         all nplibs npexecs depend dist clean distclean
+
+
+all:            nplibs npexecs npdicts
+
+nplibs:         $(ALLLIBS)
+
+npexecs:        $(ALLEXECS)
+
+npdicts:	$(ALLDICTS)
+
+$(HadesRMAIN):     $(HadesRMAINO) $(ALLLIBS) CreateHistos.cxx WriteHistos.cxx
+		$(LD)  $(SYSXLIBS) $(LDFLAGS) -o $(HadesRMAIN) $(HadesRMAINO)\
+		$(ALLLIBS) -L $(LPATH) $(ROOTLIBS) $(ROOTGLIBS) $(RINTLIBS) -L/usr/lib64/  -L/home/ciepal/Main/PLUTO/pluto_v5.42 -lstdc++ 
+		
+
+#$(SymRLIB):      $(HadesRO) $(HadesRDO)
+#		@$(MAKELIB) $(PLATFORM) $(LD) "$(LDFLAGS)" \
+#		   "$(SOFLAGS)" libSymAnal.$(SOEXT) $@ "$(SymRO) $(SymRDO) libSymRun.so" 
+
+$(HadesRLIB):      $(HadesRO) $(HadesRDO)
+		@$(MAKELIB) $(PLATFORM) $(LD) "$(LDFLAGS)" \
+		   "$(SOFLAGS)" libHadesAnal.$(SOEXT) $@ "$(HadesRO) $(HadesRDO)" 
+
+$(HadesRDS):       $(HadesRH) $(HadesRL)
+		@echo "Generating dictionary $(HadesRDS)..."
+		rootcint -f $(HadesRDS) -c $(HadesRH) $(HadesRL)
+
+$(HadesRDO):       $(HadesRDS)
+		$(CXX) $(NOOPT) $(CXXFLAGS) -c $(HadesRDS)
+
+
+depend:
+		./makedepend -f Make-depend -- $(CXXFLAGS) -- $(ALLSRCS)
+
+dist:
+		rm -f nprun.tar.gz ; \
+		tar cvf nprun.tar README Makefile.* Make-* Makelib *.cxx *.h *.C ; \
+		gzip nprun.tar
+
+clean:
+		@rm -f $(ALLOBJS); rm -f libHadesAnal.so rm -f *~
+		@rm -f $(ALLOBJS); rm -f HadesA rm Hades_Cint*
+
+distclean:      clean
+		@rm -f $(ALLDICT) $(ALLLIBS) $(ALLEXECS)
+
+chain: clean
+
+	@rm -f $(ECBBaseCXX) $(ECBBaseH);rm -f ClassName.h; rm -f make-chain && touch make-chain;root -b -q MakeChain.C 
+
